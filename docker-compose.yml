@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  front-end:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+  catalogue:
+    build: ./catalogue
+    ports:
+      - "4000:4000"
+  voting:
+    build: ./voting
+    ports:
+      - "5000:5000"
+  recommendation:
+    build: ./recommendation
+    ports:
+      - "6000:6000"
