@@ -15,4 +15,4 @@ services:
   recommendation:
     build: ./recommendation
     ports:
-      - "6000:6000"
+      - "7000:7000"
