@@ -1,0 +1,235 @@
+# initial pipeline that will be updated as time goes on
+# Trigger => Build => Test => Push as the first iteration
+# Will add Terraform + Kubernetes deploy stage
+# Linting/security scans
+# Matrix build
+# manual workflow?
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev/*
+  pull_request:
+    branches:
+      - main
+      - release/*
+
+jobs:
+  filter-paths:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      catalogue: ${{ steps.changes.outputs.catalogue }}
+      voting: ${{ steps.changes.outputs.voting }}
+      recommendation: ${{ steps.changes.outputs.recommendation }}
+    steps:
+      - uses: actions/checkout@4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            catalogue:
+              - 'catalogue/**'
+            voting:
+              - 'voting/**'
+            recommendation:
+              - 'recommendation/**'
+
+
+  build-frontend:
+    needs: filter-paths
+    # Only run this job if the filter-paths job output matches to true
+    if: needs.filter-paths.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    # this checks out the code committed
+    - uses: actions/checkout@4
+    # This will build the image
+    - name: Build frontend image
+      run: docker build -t mmathew93/craftista-sandbox-frontend:${{ github.sha }} ./frontend
+    # Test the image that was built here
+    - name: Test built image
+      run: echo 'Testing the recently built image...'
+    # This will then SAVE the docker image as an artifact (so we can use it later)
+    # We do this because I want to test the recently changed image with others/latest PRIOR to pushing to Docker hub
+    - name: Save image
+      run: docker save mmathew93/craftista-sandbox-frontend:${{ github.sha }} -o frontend.tar
+    - uses: actions/upload-artifact@v4
+      with:
+        name: frontend-image
+        path: frontend.tar
+
+
+  build-catalogue:
+    needs: filter-paths
+    if: needs.filter-paths.outputs.catalogue == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@4
+    - name: Build catalogue image
+      run: docker build -t mmathew93/craftista-sandbox-catalogue:${{ github.sha }} ./catalogue
+    - name: Test built image
+      run: echo 'Testing the recently built image...'
+    - name: Save image
+      run: docker save mmathew93/craftista-sandbox-catalogue:${{ github.sha }} -o catalogue.tar
+    - uses: actions/upload-artifact@v4
+      with:
+        name: catalogue-image
+        path: catalogue.tar
+
+        
+  build-voting:
+    needs: filter-paths
+    if: needs.filter-paths.outputs.voting == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@4
+    - name: Build voting image
+      run: docker build -t mmathew93/craftista-sandbox-voting:${{ github.sha }} ./voting
+    - name: Test built image
+      run: echo 'Testing the recently built image...'
+    - name: Save image
+      run: docker save mmathew93/craftista-sandbox-voting:${{ github.sha }} -o voting.tar
+    - uses: actions/upload-artifact@v4
+      with:
+        name: voting-image
+        path: voting.tar
+
+
+  build-recommendation:
+    needs: filter-paths
+    if: needs.filter-paths.outputs.recommendation == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@4
+    - name: Build recommendation image
+      run: docker build -t mmathew93/craftista-sandbox-recommendation:${{ github.sha }} ./recommendation
+    - name: Test built image
+      run: echo 'Testing the recently built image...'
+    - name: Save image
+      run: docker save mmathew93/craftista-sandbox-recommendation:${{ github.sha }} -o recommendation.tar
+    - uses: actions/upload-artifact@v4
+      with:
+        name: recommendation-image
+        path: recommendation.tar
+
+
+
+
+
+  integration-test:
+    needs: [build-frontend, build-catalogue, build-voting, build-recommendation]
+    runs-on: ubuntu-latest
+    steps: 
+    # Checkout code
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # We need to download all artifacts that match the pattern here
+    - name: Download all potential artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: |
+          frontend-image
+          voting-image
+          recommendation-image
+          catalogue-image
+        # We are creating a folder for each download (./artifacts/*-image/)
+        # And within each folder we are uploading the tar file
+        path: ./artifacts
+        # Optional is needed as not ALL of these artifacts will be there
+        optional: true
+
+    # We now need to load in either the artifacts we downloaded OR pull the latest docker hub images that were NOT altered
+    - name: Configure and load images for testing
+      run: |
+        # Load images from downloaded artifacts if they exist
+        if [ -f ./artifacts/frontend-image/frontend.tar ]; then docker load --input ./artifacts/frontend-image/frontend.tar; else docker pull mmathew93/craftista-sandbox-frontend:latest; fi
+        if [ -f ./artifacts/catalogue-image/catalogue.tar ]; then docker load --input ./artifacts/catalogue-image/catalogue.tar; else docker pull mmathew93/craftista-sandbox-catalogue:latest; fi
+        if [ -f ./artifacts/voting-image/voting.tar ]; then docker load --input ./artifacts/voting-image/voting.tar; else docker pull mmathew93/craftista-sandbox-voting:latest; fi
+        if [ -f ./artifacts/recommendation-image/recommendation.tar ]; then docker load --input ./artifacts/recommendation-image/recommendation.tar; else docker pull mmathew93/craftista-sandbox-recommendation:latest; fi
+
+    # Here we would spin up the docker-compose
+    - name: Start services with Docker Compose (CI override)
+      run: docker compose -f docker-compose.ci.yml up -d
+      env:
+        GITHUB_SHA: ${{ github.sha }}
+
+    # Added health check, this allows us to ensure each component is fully spun up and will be ready for the smoke test
+    - name: Wait for services to be healthy and live
+      run: |
+        # Loop until all containers report healthy
+        for service in frontend catalogue voting recommendation; do
+          echo "Waiting for $service to be healthy..."
+          until [ "$(docker inspect --format='{{json .State.Health.Status}}' ${service})" = "\"healthy\"" ]; do
+            sleep 10
+          done
+        done
+
+    # Once services are alive and healthy we will run smoke tests
+    - name: Run smoke tests
+      run: | # or we could do the following: ./run-integration-tests.sh (reference the shell script we want to run that might have the tests we want to run within it
+       # Check frontend health endpoint
+       curl --fail http://localhost:3000/health
+       # Check catalogue service
+       curl --fail http://localhost:4000/health
+       # Check voting service
+       curl --fail http://localhost:5000/health
+       # Check recommendation service
+       curl --fail http://localhost:7000/health
+
+    # Once testing is done we need to tear down the composed app
+    - name: Tear down services
+      run: docker compose down
+
+
+
+
+
+  push:
+    needs: integration-test
+    runs-on: ubuntu-latest
+    steps:
+    # if everything passed, we push to docker hub to update the developer changed image, then update the github repo with changes
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: mmathew93
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    # To push the image to Docker Hub we first need to check if it was updated, if it was then push it, this check is repeated for each image
+    - name: Push frontend image
+      if: needs.filter-paths.outputs.frontend == 'true'
+      run: |
+       # We already built the image tagged with the SHA, we create a second tag (latest)
+       # Why? SHA tag is for traceability, the latest tag is for convenience, we've essentially labeled the image as both
+       docker tag mmathew93/craftista-sandbox-frontend:${{ github.sha }} mmathew93/craftista-sandbox-frontend:latest
+
+       # From here we then push the image twice, once for the SHA, once for the latest (the tags we set up)
+       docker push mmathew93/craftista-sandbox-frontend:${{ github.sha }}
+       docker push mmathew93/craftista-sandbox-frontend:latest
+
+    - name: Push catalogue image
+      if: needs.filter-paths.outputs.catalogue == 'true'
+      run: |
+       docker tag mmathew93/craftista-sandbox-catalogue:${{ github.sha }} mmathew93/craftista-sandbox-catalogue:latest
+       docker push mmathew93/craftista-sandbox-catalogue:${{ github.sha }}
+       docker push mmathew93/craftista-sandbox-catalogue:latest
+
+    - name: Push voting image
+      if: needs.filter-paths.outputs.voting == 'true'
+      run: |
+       docker tag mmathew93/craftista-sandbox-voting:${{ github.sha }} mmathew93/craftista-sandbox-voting:latest
+       docker push mmathew93/craftista-sandbox-voting:${{ github.sha }}
+       docker push mmathew93/craftista-sandbox-voting:latest
+
+    - name: Push recommendation image
+      if: needs.filter-paths.outputs.recommendation == 'true'
+      run: |
+       docker tag mmathew93/craftista-sandbox-recommendation:${{ github.sha }} mmathew93/craftista-sandbox-recommendation:latest
+       docker push mmathew93/craftista-sandbox-recommendation:${{ github.sha }}
+       docker push mmathew93/craftista-sandbox-recommendation:latest
