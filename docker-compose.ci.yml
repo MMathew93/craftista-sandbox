@@ -1,0 +1,61 @@
+version: "3.9"
+
+networks:
+  application-net:
+    driver: bridge
+services:
+  front-end:
+    image: mmathew93/craftista-sandbox-frontend:${GITHUB_SHA}
+    ports:
+      - "3000:3000"
+    environment:
+      CATALOGUE_URL: http://catalogue:5000
+      VOTING_URL: http://voting:8080
+      RECOMMENDATION_URL: http://recommendation:8080
+    networks:
+      - application-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:3000/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  catalogue:
+    image: mmathew93/craftista-sandbox-catalogue:${GITHUB_SHA}
+    ports:
+      - "4000:5000"
+    networks:
+      - application-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:5000/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  voting:
+    image: mmathew93/craftista-sandbox-voting:${GITHUB_SHA}
+    ports:
+      - "5000:8080"
+    networks:
+      - application-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:8080/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  recommendation:
+    image: mmathew93/craftista-sandbox-recommendation:${GITHUB_SHA}
+    ports:
+      - "7000:8080"
+    networks:
+      - application-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:8080/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
