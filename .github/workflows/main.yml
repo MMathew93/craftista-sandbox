@@ -25,7 +25,7 @@ jobs:
       voting: ${{ steps.changes.outputs.voting }}
       recommendation: ${{ steps.changes.outputs.recommendation }}
     steps:
-      - uses: actions/checkout@4
+      - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: changes
         with:
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # this checks out the code committed
-    - uses: actions/checkout@4
+    - uses: actions/checkout@v4
     # This will build the image
     - name: Build frontend image
       run: docker build -t mmathew93/craftista-sandbox-frontend:${{ github.sha }} ./frontend
@@ -69,7 +69,7 @@ jobs:
     if: needs.filter-paths.outputs.catalogue == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@4
+    - uses: actions/checkout@v4
     - name: Build catalogue image
       run: docker build -t mmathew93/craftista-sandbox-catalogue:${{ github.sha }} ./catalogue
     - name: Test built image
@@ -87,7 +87,7 @@ jobs:
     if: needs.filter-paths.outputs.voting == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@4
+    - uses: actions/checkout@v4
     - name: Build voting image
       run: docker build -t mmathew93/craftista-sandbox-voting:${{ github.sha }} ./voting
     - name: Test built image
@@ -105,7 +105,7 @@ jobs:
     if: needs.filter-paths.outputs.recommendation == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@4
+    - uses: actions/checkout@v4
     - name: Build recommendation image
       run: docker build -t mmathew93/craftista-sandbox-recommendation:${{ github.sha }} ./recommendation
     - name: Test built image
