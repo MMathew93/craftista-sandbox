@@ -146,10 +146,34 @@ jobs:
     - name: Configure and load images for testing
       run: |
         # Load images from downloaded artifacts if they exist
-        if [ -f ./artifacts/frontend-image/frontend.tar ]; then docker load --input ./artifacts/frontend-image/frontend.tar; else docker pull mmathew93/craftista-sandbox-frontend:latest; fi
-        if [ -f ./artifacts/catalogue-image/catalogue.tar ]; then docker load --input ./artifacts/catalogue-image/catalogue.tar; else docker pull mmathew93/craftista-sandbox-catalogue:latest; fi
-        if [ -f ./artifacts/voting-image/voting.tar ]; then docker load --input ./artifacts/voting-image/voting.tar; else docker pull mmathew93/craftista-sandbox-voting:latest; fi
-        if [ -f ./artifacts/recommendation-image/recommendation.tar ]; then docker load --input ./artifacts/recommendation-image/recommendation.tar; else docker pull mmathew93/craftista-sandbox-recommendation:latest; fi
+        # Because we ref SHA in our override file we need to tag it locally when we pull latest it can still find an image ref
+        if [ -f ./artifacts/frontend-image/frontend.tar ]; then
+          docker load --input ./artifacts/frontend-image/frontend.tar
+        else
+          docker pull mmathew93/craftista-sandbox-frontend:latest
+          docker tag mmathew93/craftista-sandbox-frontend:latest mmathew93/craftista-sandbox-frontend:${GITHUB_SHA}
+        fi
+
+        if [ -f ./artifacts/catalogue-image/catalogue.tar ]; then
+          docker load --input ./artifacts/catalogue-image/catalogue.tar
+        else
+          docker pull mmathew93/craftista-sandbox-catalogue:latest
+          docker tag mmathew93/craftista-sandbox-catalogue:latest mmathew93/craftista-sandbox-catalogue:${GITHUB_SHA}
+        fi
+
+        if [ -f ./artifacts/voting-image/voting.tar ]; then
+          docker load --input ./artifacts/voting-image/voting.tar
+        else
+          docker pull mmathew93/craftista-sandbox-voting:latest
+          docker tag mmathew93/craftista-sandbox-voting:latest mmathew93/craftista-sandbox-voting:${GITHUB_SHA}
+        fi
+
+        if [ -f ./artifacts/recommendation-image/recommendation.tar ]; then
+          docker load --input ./artifacts/recommendation-image/recommendation.tar
+        else
+          docker pull mmathew93/craftista-sandbox-recommendation:latest
+          docker tag mmathew93/craftista-sandbox-recommendation:latest mmathew93/craftista-sandbox-recommendation:${GITHUB_SHA}
+        fi
 
     # Here we would spin up the docker-compose
     - name: Start services with Docker Compose (CI override)
