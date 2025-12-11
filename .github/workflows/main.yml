@@ -183,7 +183,7 @@ jobs:
 
     # Added health check, this allows us to ensure each component is fully spun up and will be ready for the smoke test
     - name: Wait for services to be healthy and live
-      run: docker compose -f docker-compose.ci.yml wait
+      run: docker compose -f docker-compose.ci.yml wait frontend catalogue voting recommendation
       # run: |
       #   # Loop until all containers report healthy
       #   for service in frontend catalogue voting recommendation; do
