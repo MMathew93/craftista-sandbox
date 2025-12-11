@@ -14,6 +14,8 @@ RUN CGO_ENABLED=0 go build -o worker
 # Runtime build
 FROM alpine:3.22
 
+RUN apk add --no-cache curl
+
 WORKDIR /app/recommendation
 
 COPY --from=builder /app/recommendation/worker .
