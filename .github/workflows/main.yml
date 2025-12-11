@@ -183,14 +183,15 @@ jobs:
 
     # Added health check, this allows us to ensure each component is fully spun up and will be ready for the smoke test
     - name: Wait for services to be healthy and live
-      run: |
-        # Loop until all containers report healthy
-        for service in frontend catalogue voting recommendation; do
-          echo "Waiting for $service to be healthy..."
-          until [ "$(docker inspect --format='{{json .State.Health.Status}}' ${service})" = "\"healthy\"" ]; do
-            sleep 10
-          done
-        done
+      run: docker compose -f docker-compose.ci.yml wait
+      # run: |
+      #   # Loop until all containers report healthy
+      #   for service in frontend catalogue voting recommendation; do
+      #     echo "Waiting for $service to be healthy..."
+      #     until [ "$(docker inspect --format='{{json .State.Health.Status}}' ${service})" = "\"healthy\"" ]; do
+      #       sleep 10
+      #     done
+      #   done
 
     # Once services are alive and healthy we will run smoke tests
     - name: Run smoke tests
