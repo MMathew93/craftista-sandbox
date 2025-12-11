@@ -4,7 +4,7 @@ networks:
   application-net:
     driver: bridge
 services:
-  front-end:
+  frontend:
     image: mmathew93/craftista-sandbox-frontend:${GITHUB_SHA}
     ports:
       - "3000:3000"
