@@ -182,16 +182,60 @@ jobs:
         GITHUB_SHA: ${{ github.sha }}
 
     # Added health check, this allows us to ensure each component is fully spun up and will be ready for the smoke test
+   # Added health check, this allows us to ensure each component is fully spun up and will be ready for the smoke test
     - name: Wait for services to be healthy and live
-      run: docker compose -f docker-compose.ci.yml wait frontend catalogue voting recommendation
-      # run: |
-      #   # Loop until all containers report healthy
-      #   for service in frontend catalogue voting recommendation; do
-      #     echo "Waiting for $service to be healthy..."
-      #     until [ "$(docker inspect --format='{{json .State.Health.Status}}' ${service})" = "\"healthy\"" ]; do
-      #       sleep 10
-      #     done
-      #   done
+      run: |
+       timeout 1200 bash -c '
+       SERVICES="frontend catalogue voting recommendation"
+       echo "Watching health status with adaptive timeout..."
+
+       LAST_PROGRESS=$(date +%s)
+       declare -A LAST_STATUS
+
+       while true; do
+         ALL_HEALTHY=true
+         PROGRESS_MADE=false
+
+         for S in $SERVICES; do
+           CID=$(docker compose -f docker-compose.ci.yml ps -q $S)
+           STATUS=$(docker inspect --format="{{.State.Health.Status}}" $CID 2>/dev/null || echo "missing")
+           echo "$S ($CID) → $STATUS"
+
+           if [ "${LAST_STATUS[$S]}" != "$STATUS" ]; then
+             PROGRESS_MADE=true
+             LAST_STATUS[$S]=$STATUS
+           fi
+
+           if [ "$STATUS" != "healthy" ]; then
+             ALL_HEALTHY=false
+           fi
+         done
+
+         echo "-------------------------------------"
+
+         # If everything is healthy → DONE
+         if [ "$ALL_HEALTHY" = true ]; then
+           echo "All services are healthy!"
+           break
+         fi
+
+         # If there was progress → reset timer
+         if [ "$PROGRESS_MADE" = true ]; then
+           LAST_PROGRESS=$(date +%s)
+         fi
+
+         # If NO progress for 5 minutes → fail
+         NOW=$(date +%s)
+         NO_PROGRESS_FOR=$(( NOW - LAST_PROGRESS ))
+
+         if [ $NO_PROGRESS_FOR -gt 300 ]; then
+           echo "❌ No progress in 5 minutes — failing."
+           exit 1
+         fi
+
+         sleep 5
+       done
+       '
 
     # Once services are alive and healthy we will run smoke tests
     - name: Run smoke tests
