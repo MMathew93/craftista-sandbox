@@ -1,15 +1,15 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-        "recommendation/api"
-	"net/http"
-	"time"
-        "encoding/json"
+	"encoding/json"
 	"net"
-        "os"
-)
+	"net/http"
+	"os"
+	"recommendation/api"
+	"time"
 
+	"github.com/gin-gonic/gin"
+)
 
 // Config represents the structure of our configuration file.
 type Config struct {
@@ -107,6 +107,11 @@ func main() {
 
 	// Set path to serve static files
 	router.Static("/static", "./static")
+
+	// Define route for health check
+	router.GET("/health", func(c *gin.Context){
+		c.String(http.StatusOK, "OK")
+	})
 
 	// Define route for the home page
 	router.GET("/", renderHomePage)

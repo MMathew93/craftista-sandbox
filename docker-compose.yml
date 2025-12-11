@@ -1,0 +1,34 @@
+version: "3.9"
+
+networks:
+  application-net:
+    driver: bridge
+services:
+  front-end:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      CATALOGUE_URL: http://catalogue:5000
+      VOTING_URL: http://voting:8080
+      RECOMMENDATION_URL: http://recommendation:8080
+    networks:
+      - application-net
+  catalogue:
+    build: ./catalogue
+    ports:
+      - "4000:5000"
+    networks:
+      - application-net
+  voting:
+    build: ./voting
+    ports:
+      - "5000:8080"
+    networks:
+      - application-net
+  recommendation:
+    build: ./recommendation
+    ports:
+      - "7000:8080"
+    networks:
+      - application-net
