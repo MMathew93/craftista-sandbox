@@ -141,8 +141,6 @@ jobs:
         # We are creating a folder for each download (./artifacts/*-image/)
         # And within each folder we are uploading the tar file
         path: ./artifacts
-        # Optional is needed as not ALL of these artifacts will be there
-        optional: true
 
     # We now need to load in either the artifacts we downloaded OR pull the latest docker hub images that were NOT altered
     - name: Configure and load images for testing
