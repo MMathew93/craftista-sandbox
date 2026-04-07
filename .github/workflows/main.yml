@@ -181,6 +181,23 @@ jobs:
       env:
         GITHUB_SHA: ${{ github.sha }}
 
+    - name: Debug containers
+      run: |
+       for S in frontend catalogue voting recommendation; do
+        echo "===== $S ====="
+       CID=$(docker compose -f docker-compose.ci.yml ps -q $S)
+        echo "--- Processes ---"
+       docker exec $CID ps aux || true
+        echo "--- Listening Ports ---"
+       docker exec $CID netstat -tln || true
+        echo "--- Health Endpoint ---"
+       docker exec $CID curl -v http://localhost:8080/health || true
+       docker exec $CID curl -v http://localhost:5000/health || true
+       docker exec $CID curl -v http://localhost:3000/health || true
+        echo ""
+       done
+
+
     # Added health check, this allows us to ensure each component is fully spun up and will be ready for the smoke test
    # Added health check, this allows us to ensure each component is fully spun up and will be ready for the smoke test
     - name: Wait for services to be healthy and live
