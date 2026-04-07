@@ -32,3 +32,5 @@ services:
       - "7000:8080"
     networks:
       - application-net
+
+      #test
