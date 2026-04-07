@@ -50,6 +50,10 @@ def get_product(product_id):
         return jsonify(product)
     else:
         return jsonify({'message': 'Product not found'}), 404
+    
+@app.route("/health")
+def health():
+    return "OK", 200
 
 def get_system_info():
     hostname = socket.gethostname()
