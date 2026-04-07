@@ -176,8 +176,33 @@ jobs:
       - name: Debug containers
         run: |
           for S in frontend catalogue voting recommendation; do
-           echo "===== $S ====="
-          CID=$(docker compose -f docker-compose.ci.yml ps -q $S)
+            echo "===== $S ====="
+            CID=$(docker compose -f docker-compose.ci.yml ps -q $S)
+
+            echo "--- Processes ---"
+            docker exec $CID ps aux || true
+
+            echo "--- Listening Ports ---"
+            docker exec $CID netstat -tln || true
+
+            echo "--- Health Endpoint ---"
+            case $S in
+              frontend)
+                docker exec $CID wget -qO- http://localhost:3000/health || echo "wget failed"
+                ;;
+              catalogue)
+                docker exec $CID wget -qO- http://localhost:5000/health || echo "wget failed"
+                ;;
+              voting)
+                docker exec $CID wget -qO- http://localhost:8080/health || echo "wget failed"
+                ;;
+              recommendation)
+                docker exec $CID wget -qO- http://localhost:8080/health || echo "wget failed"
+                ;;
+            esac
+
+            echo ""
+          done
 
            echo "--- Processes ---"
           docker exec $CID ps aux || true
